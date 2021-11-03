@@ -1,7 +1,26 @@
 {
-  "name": "the-super-tiny-compiler",
-  "version": "1.0.0",
-  "author": "James Kyle <me@thejameskyle.com> (thejameskyle.com)",
+  "name": "the-super-tiny-compiler-in-rust",
+  "version": "0.0.0",
+  "napi": {
+    "name": "the-super-tiny-compiler-in-rust",
+    "triples": {}
+  },
   "license": "CC-BY-4.0",
-  "main": "./the-super-tiny-compiler.js"
+  "dependencies": {
+    "@node-rs/helper": "^1.2.1"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^1.2.1"
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "version": "napi version"
+  },
+  "author": "James Kyle <me@thejameskyle.com> (thejameskyle.com)"
 }
