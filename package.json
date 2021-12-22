@@ -1,16 +1,15 @@
 {
   "name": "the-super-tiny-compiler-in-rust",
   "version": "0.0.0",
+  "main": "index.js",
+  "types": "index.d.ts",
   "napi": {
     "name": "the-super-tiny-compiler-in-rust",
     "triples": {}
   },
   "license": "CC-BY-4.0",
-  "dependencies": {
-    "@node-rs/helper": "^1.2.1"
-  },
   "devDependencies": {
-    "@napi-rs/cli": "^1.2.1"
+    "@napi-rs/cli": "^2.0.0"
   },
   "engines": {
     "node": ">= 10"
