@@ -3,30 +3,9 @@
 #[macro_use]
 extern crate napi_derive;
 
+use napi_derive::napi;
+use napi::bindgen_prelude::*;
 use regex::Regex;
-
-use napi::{
-    CallContext, Env, Error, JsFunction, JsNumber, JsObject, JsString, JsUndefined, Result, Status,
-    Task,
-};
-
-struct AsyncTask(u32);
-
-impl Task for AsyncTask {
-    type Output = u32;
-    type JsValue = JsNumber;
-
-    fn compute(&mut self) -> Result<Self::Output> {
-        use std::thread::sleep;
-        use std::time::Duration;
-        sleep(Duration::from_millis(self.0 as u64));
-        Ok(self.0 * 2)
-    }
-
-    fn resolve(self, env: Env, output: Self::Output) -> Result<Self::JsValue> {
-        env.create_uint32(output)
-    }
-}
 
 /**
  * TTTTTTTTTTTTTTTTTTTTTTTHHHHHHHHH     HHHHHHHHHEEEEEEEEEEEEEEEEEEEEEE
@@ -404,15 +383,13 @@ impl Task for AsyncTask {
  *   (add 2 (subtract 4 2))   =>   [{ type: 'paren', value: '(' }, ...]
  */
 
-#[js_function(1)]
-fn tokenizer(ctx: CallContext) -> Result<JsObject> {
-    let input = ctx.get::<JsString>(0)?.into_utf8()?.as_str()?.to_string();
-
+#[napi]
+fn tokenizer(env: Env, input: String) -> Result<Vec<Object>> {
     // A `current` variable for tracking our position in the code like a cursor.
     let mut current = 0;
 
     // And a `tokens` array for pushing our tokens to.
-    let mut tokens = ctx.env.create_array()?;
+    let mut tokens = Vec::new();
 
     // We start by creating a `while` loop where we are setting up our `current`
     // variable to be incremented as much as we want `inside` the loop.
@@ -431,10 +408,10 @@ fn tokenizer(ctx: CallContext) -> Result<JsObject> {
         if char == '(' {
             // If we do, we push a new token with the type `paren` and set the value
             // to an open parenthesis.
-            let mut token = ctx.env.create_object()?;
-            token.set_named_property("type", ctx.env.create_string("paren")?)?;
-            token.set_named_property("value", ctx.env.create_string("(")?)?;
-            tokens.set_element(tokens.get_array_length()?, token)?;
+            let mut token = env.create_object().unwrap();
+            token.set("type", "paren").unwrap();
+            token.set("value", "(").unwrap();
+            tokens.push(token);
 
             // Then we increment `current`
             current += 1;
@@ -447,10 +424,10 @@ fn tokenizer(ctx: CallContext) -> Result<JsObject> {
         // thing as before: Check for a closing parenthesis, add a new token,
         // increment `current`, and `continue`.
         if char == ')' {
-            let mut token = ctx.env.create_object()?;
-            token.set_named_property("type", ctx.env.create_string("paren")?)?;
-            token.set_named_property("value", ctx.env.create_string(")")?)?;
-            tokens.set_element(tokens.get_array_length()?, token)?;
+            let mut token = env.create_object().unwrap();
+            token.set("type", "paren").unwrap();
+            token.set("value", ")").unwrap();
+            tokens.push(token);
             current += 1;
             continue;
         }
@@ -493,10 +470,10 @@ fn tokenizer(ctx: CallContext) -> Result<JsObject> {
             }
 
             // After that we push our `number` token to the `tokens` array.
-            let mut token = ctx.env.create_object()?;
-            token.set_named_property("type", ctx.env.create_string("number")?)?;
-            token.set_named_property("value", ctx.env.create_string_from_std(value)?)?;
-            tokens.set_element(tokens.get_array_length()?, token)?;
+            let mut token = env.create_object().unwrap();
+            token.set("type", "number").unwrap();
+            token.set("value", value).unwrap();
+            tokens.push(token);
 
             // And we continue on.
             continue;
@@ -529,10 +506,10 @@ fn tokenizer(ctx: CallContext) -> Result<JsObject> {
             current += 1;
 
             // And add our `string` token to the `tokens` array.
-            let mut token = ctx.env.create_object()?;
-            token.set_named_property("type", ctx.env.create_string("string")?)?;
-            token.set_named_property("value", ctx.env.create_string_from_std(value)?)?;
-            tokens.set_element(tokens.get_array_length()?, token)?;
+            let mut token = env.create_object().unwrap();
+            token.set("type", "string").unwrap();
+            token.set("value", value).unwrap();
+            tokens.push(token);
 
             continue;
         }
@@ -558,10 +535,10 @@ fn tokenizer(ctx: CallContext) -> Result<JsObject> {
             }
 
             // And pushing that value as a token with the type `name` and continuing.
-            let mut token = ctx.env.create_object()?;
-            token.set_named_property("type", ctx.env.create_string("name")?)?;
-            token.set_named_property("value", ctx.env.create_string_from_std(value)?)?;
-            tokens.set_element(tokens.get_array_length()?, token)?;
+            let mut token = env.create_object().unwrap();
+            token.set("type", "name").unwrap();
+            token.set("value", value).unwrap();
+            tokens.push(token);
 
             continue;
         }
@@ -742,19 +719,17 @@ fn walk(env: &Env, tokens: &JsObject, current: &mut u32) -> Result<JsObject> {
 
 // Okay, so we define a `parser` function that accepts our array of `tokens`.
 
-#[js_function(1)]
-fn parser(ctx: CallContext) -> Result<JsObject> {
-    let tokens = ctx.get::<JsObject>(0)?;
-
+#[napi]
+fn parser(env: Env, tokens: Array) -> Object {
     // Again we keep a `current` variable that we will use as a cursor.
     let mut current = 0;
 
     // Now, we're going to create our AST which will have a root which is a
     // `Program` node.
-    let mut ast = ctx.env.create_object()?;
-    let mut body = ctx.env.create_array()?;
-    ast.set_named_property("type", ctx.env.create_string("Program")?)?;
-    ast.set_named_property("body", &body)?;
+    let mut ast = env.create_object().unwrap();
+    let mut body = env.create_array().unwrap();
+    ast.set("type", "Program").unwrap();
+    ast.set("body", &body).unwrap();
 
     // And we're going to kickstart our `walk` function, pushing nodes to our
     // `ast.body` array.
@@ -768,11 +743,11 @@ fn parser(ctx: CallContext) -> Result<JsObject> {
     while current < tokens.get_array_length()? {
         body.set_element(
             body.get_array_length()?,
-            walk(ctx.env, &tokens, &mut current)?,
+            walk(env, &tokens, &mut current)?,
         )?;
     }
 
-    Ok(ast)
+    ast
 }
 
 /**
@@ -974,7 +949,7 @@ fn traverse_node(
 
 // So we have our transformer function which will accept the lisp ast.
 
-#[js_function(1)]
+#[napi]
 fn transformer(ctx: CallContext) -> Result<JsObject> {
     let mut ast = ctx.get::<JsObject>(0)?;
 
@@ -1122,7 +1097,7 @@ fn on_call_expression_enter(ctx: CallContext) -> Result<JsUndefined> {
  * the tree into one giant string.
  */
 
-#[js_function(1)]
+#[napi]
 fn code_generator(ctx: CallContext) -> Result<JsString> {
     let node = ctx.get::<JsObject>(0)?;
 
@@ -1212,21 +1187,3 @@ fn code_generator_node(node: &JsObject) -> Result<String> {
     Ok(code)
 }
 
-/**
- * ============================================================================
- *                                   (๑˃̵ᴗ˂̵)و
- * !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!YOU MADE IT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
- * ============================================================================
- */
-
-// Now I'm just exporting everything...
-#[module_exports]
-fn init(mut exports: JsObject) -> Result<()> {
-    exports.create_named_method("tokenizer", tokenizer)?;
-    exports.create_named_method("parser", parser)?;
-    exports.create_named_method("traverser", traverser)?;
-    exports.create_named_method("transformer", transformer)?;
-    exports.create_named_method("codeGenerator", code_generator)?;
-
-    Ok(())
-}
